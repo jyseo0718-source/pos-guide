@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>말랑하니 POS 연습 시뮬레이터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFEDE8; --ink:#23211D; --ink-soft:#5E584E; --line:#D7D2C7;
+  --card:#FFFFFF; --bezel:#2A2B30; --screen:#E8EDF5;
+  --nice:#1C3C77; --nice-2:#2E5BA8; --mark:#FFD24A;
+  --ok:#1F7A4D; --bad:#B8342A;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#17171A; --ink:#EDEAE4; --ink-soft:#A49E93; --line:#33322E;
+    --card:#201F22; --screen:#DCE3EF;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#17171A; --ink:#EDEAE4; --ink-soft:#A49E93; --line:#33322E;
+  --card:#201F22; --screen:#DCE3EF;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Malgun Gothic",sans-serif;
+  font-size:15px; line-height:1.6; -webkit-text-size-adjust:100%;
+}
+img{max-width:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--nice-2);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px 72px}
+header.top{border-bottom:1px solid var(--line);margin-bottom:22px}
+.topin{max-width:1180px;margin:0 auto;padding:22px 18px 0;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-content:space-between}
+h1{font-size:21px;font-weight:700;margin:0;letter-spacing:-.02em}
+h1 span{display:block;font-size:12.5px;font-weight:400;color:var(--ink-soft);letter-spacing:0}
+.tabs{display:flex;gap:2px}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 14px;font-size:14px;font-weight:500;color:var(--ink-soft)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--nice-2);font-weight:700}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+
+/* ---- POS device ---- */
+.device{background:var(--bezel);border-radius:10px;padding:13px 13px 26px;box-shadow:0 14px 34px rgba(0,0,0,.22);position:relative}
+.device::after{content:"NICE";position:absolute;left:50%;transform:translateX(-50%);bottom:6px;color:#8b8d95;font-size:10px;letter-spacing:.3em;font-weight:700}
+.screen{background:var(--screen);border-radius:3px;overflow:hidden;min-height:505px;color:#17213a;font-size:13.5px;display:flex;flex-direction:column}
+.screen *{box-sizing:border-box}
+
+.paygrid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:10px}
+.paygrid span{background:#eef2f8;border:1px solid #a9b7cf;border-radius:3px;padding:7px 2px;font-size:10.5px;text-align:center;color:#17213a}
+.paygrid span.no{background:#f6e3e1;border-color:#d8a9a4;color:#B8342A;text-decoration:line-through}
+/* ===== 실제 포스 화면 재현 ===== */
+.sbar{background:linear-gradient(180deg,#f2f4f7,#dfe3ea);border-bottom:1px solid #a9b4c6;color:#16263f;display:flex;align-items:center;gap:12px;padding:5px 8px;font-size:11px}
+.sbar .logo{border:1.5px solid #16263f;padding:2px 7px;font-weight:900;letter-spacing:-.03em;font-size:13px;white-space:nowrap}
+.sbar .info{display:flex;flex-direction:column;line-height:1.45;white-space:nowrap}
+.sbar .clock{margin-left:auto;font-size:16px;font-weight:700;letter-spacing:.06em}
+.sbar .xbtn{background:#2d3744;color:#fff;width:24px;height:20px;display:grid;place-items:center;font-size:11px;border-radius:2px}
+@media (max-width:640px){.sbar .info:nth-of-type(2){display:none}}
+
+.sales{flex:1;display:grid;grid-template-columns:1fr 1fr;background:#cfd6e2;gap:1px;min-height:0}
+@media (max-width:820px){.sales{grid-template-columns:1fr}}
+.lft,.rgt{background:#f7f9fc;display:flex;flex-direction:column;min-width:0}
+
+.cartbox{background:#fff;height:150px;overflow:auto;border-bottom:1px solid #9fb0cc}
+table.cart{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
+table.cart th{background:linear-gradient(180deg,#5e93c6,#3d6fa8);color:#fff;font-weight:700;padding:5px 4px;border-right:1px solid #86aed6;position:sticky;top:0;text-align:center;font-size:11px}
+table.cart td{padding:4px 5px;border-bottom:1px solid #eef1f6;text-align:right;color:#1d2a3d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.cart td.n{text-align:left}
+table.cart tr.sel td{background:#2F6BA8;color:#fff}
+.cart-empty{padding:34px 10px;text-align:center;color:#8b97ab;font-size:11.5px}
+
+.subbar{display:grid;grid-template-columns:1fr 1fr 1fr;background:linear-gradient(180deg,#5e93c6,#3d6fa8);color:#fff;font-size:10.5px;font-weight:700;text-align:center;border-bottom:1px solid #9fb0cc}
+.subbar span{padding:3px;border-right:1px solid #86aed6}
+.rowbtns{display:flex;flex-wrap:wrap;gap:3px;padding:4px;background:#eef1f6;border-bottom:1px solid #b9c4d6}
+.minib{background:linear-gradient(180deg,#fff,#e8ecf3);border:1px solid #9fb0cc;border-radius:2px;padding:5px 8px;font-size:10.5px;color:#1d2a3d;line-height:1.1}
+.minib:hover{background:#dbe4f1}
+.minib.sq{width:30px;text-align:center;padding:5px 0;font-weight:700}
+
+.botzone{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 44px;gap:1px;background:#b9c4d6;flex:1;min-height:0}
+.sumpanel{background:#5c6572;color:#fff;display:flex;flex-direction:column;font-size:11px;min-width:0}
+.tabs3{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#444c57}
+.tabs3 span{background:#39414c;padding:4px 2px;text-align:center;font-size:9.5px}
+.tabs3 span:first-child{background:#6f7988}
+.srow{display:flex;justify-content:space-between;padding:5px 7px;border-bottom:1px solid #6b7482;gap:6px}
+.srow b{font-weight:700}
+.srow.money{background:#4f5763}
+.srow.due{background:#d8dfa8;color:#23281a;font-weight:700;margin-top:auto}
+.srow.due b{font-size:15px}
+.note{font-size:9.5px;color:#f2d98a;padding:4px 7px;line-height:1.4}
+
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:1px;background:#3f444c;padding:1px;min-height:150px}
+.keypad button{background:linear-gradient(180deg,#5c636d,#464c55);color:#fff;border:0;font-size:14px;font-weight:700}
+.keypad button:hover{background:#6c7480}
+.keypad button.wide{grid-column:span 2;font-size:12px}
+.kdisp{grid-column:span 3;background:#1d222a;color:#8ef0a6;text-align:right;padding:4px 8px;font-size:15px;font-weight:700;font-family:ui-monospace,monospace}
+.sidekeys{display:grid;grid-auto-rows:1fr;gap:1px;background:#b9c4d6}
+.sidekeys button{background:linear-gradient(180deg,#fff,#e8ecf3);border:0;font-size:9.5px;color:#1d2a3d;padding:2px}
+
+/* 우측 상품판 */
+.prods{flex:1;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:minmax(42px,1fr);gap:1px;background:#b9c4d6;padding:1px;overflow:auto;min-height:170px}
+@media (max-width:420px){.prods{grid-template-columns:repeat(4,1fr)}}
+.cell{background:#fff;border:0}
+.cell.head{background:#2d3744;color:#fff;font-size:10.5px;font-weight:700}
+.pbtn{background:#edf0d8;border:1px solid #c4cb9c;font-size:10.5px;line-height:1.25;color:#1d2a3d;padding:3px;display:flex;flex-direction:column;justify-content:center;gap:2px;font-weight:500}
+.pbtn em{font-style:normal;font-size:9.5px;color:#5a6a3a}
+.pbtn:hover{background:#e2e8c4}
+
+.paybar{display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 1fr;gap:2px;padding:3px;background:#dfe3ea;border-top:1px solid #b9c4d6}
+@media (max-width:520px){.paybar{grid-template-columns:repeat(3,1fr);grid-template-rows:auto}}
+.paybtn{background:linear-gradient(180deg,#fdfdfe,#e4e9f1);border:1px solid #9fb0cc;border-radius:2px;color:#16263f;font-size:11px;font-weight:700;padding:6px 2px;line-height:1.2}
+.paybtn.tall{grid-row:span 2}
+@media (max-width:520px){.paybtn.tall{grid-row:span 1}}
+.paybtn:hover{background:#d7e2f3}
+.paybtn.key{background:linear-gradient(180deg,#5e93c6,#3d6fa8);color:#fff;border-color:#2f5f93}
+.paybtn.key:hover{filter:brightness(1.08)}
+
+/* desktop (android home) */
+.android{flex:1;background:linear-gradient(160deg,#20405f,#13243a);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:30px}
+.appicon{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:14px;width:112px;height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:700}
+.appicon .box{width:34px;height:34px;background:#fff;border-radius:7px;display:grid;place-items:center;color:var(--nice);font-weight:900}
+.android p{color:#cfe0f2;font-size:12.5px;margin:0;text-align:center}
+
+/* main menu */
+.menu{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 190px;background:#dfe6f2;min-height:0}
+@media (max-width:620px){.menu{grid-template-columns:minmax(0,1fr)}}
+.promo{background:linear-gradient(135deg,#1e4e9c,#2f7fd0 60%,#49b0e8);color:#fff;padding:22px;display:flex;flex-direction:column;justify-content:center;gap:8px}
+.promo h4{margin:0;font-size:26px;font-weight:900;letter-spacing:-.03em;line-height:1.15}
+.promo small{font-size:11.5px;opacity:.85}
+.promo .store{margin-top:14px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:8px 10px;font-size:12px;line-height:1.6}
+@media (max-width:620px){.promo{display:none}}
+.mtiles{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:4px;padding:6px;background:#eef2f8}
+@media (max-width:620px){.mtiles{grid-auto-rows:minmax(72px,1fr)}}
+.mbtn{background:linear-gradient(180deg,#fff,#e6ecf5);border:1px solid #9fb0cc;border-radius:4px;padding:8px 4px;text-align:center;font-weight:700;font-size:12px;color:#16263f;line-height:1.25;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.mbtn .ic{width:26px;height:26px;border-radius:5px;background:#3d6fa8;color:#fff;display:grid;place-items:center;font-size:13px}
+.mbtn small{display:block;font-weight:400;font-size:9.5px;color:#5c6b86}
+.mbtn:hover{background:#dbe4f1}
+
+/* generic inner page */
+.page{flex:1;padding:14px;overflow:auto;background:#f3f6fb}
+.page h3{margin:0 0 10px;font-size:15px;color:var(--nice)}
+table.grid{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff}
+table.grid th{background:#dde6f4;padding:6px;border:1px solid #c2cee2;font-weight:500}
+table.grid td{padding:6px;border:1px solid #dde3ee;text-align:right}
+table.grid td.n{text-align:left}
+table.grid tr.sel td{background:#fff3cd}
+table.grid tr.minus td{color:var(--bad)}
+.field{display:inline-flex;align-items:center;gap:6px;margin:0 10px 10px 0;font-size:12.5px}
+.field select,.field input{font:inherit;font-size:12.5px;padding:4px 6px;border:1px solid #a9b7cf;border-radius:3px;background:#fff;color:#17213a}
+
+/* highlight target */
+.hl{position:relative;box-shadow:0 0 0 3px var(--mark);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px var(--mark)}50%{box-shadow:0 0 0 6px rgba(255,210,74,.45)}}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(14,18,28,.55);display:grid;place-items:center;padding:20px;z-index:50}
+.dlg{background:#f3f6fb;color:#17213a;border:1px solid #9fb0cc;border-radius:5px;width:min(420px,100%);box-shadow:0 20px 50px rgba(0,0,0,.4);overflow:hidden}
+.dlg header{background:var(--nice);color:#fff;padding:8px 12px;font-size:13px;font-weight:700;display:flex;justify-content:space-between}
+.dlg .body{padding:16px 14px;font-size:13.5px}
+.dlg .foot{display:flex;gap:8px;padding:0 14px 14px}
+.dlg .foot button{flex:1;padding:11px;border-radius:3px;border:1px solid #a9b7cf;background:#fff;font-size:13.5px;font-weight:500}
+.dlg .foot button.pri{background:var(--nice-2);color:#fff;border-color:var(--nice-2);font-weight:700}
+.optlist{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
+.optbtn{background:#fff;border:1px solid #a9b7cf;border-radius:3px;padding:12px 6px;font-size:12.5px}
+.optbtn[aria-pressed="true"]{background:var(--nice-2);color:#fff;border-color:var(--nice-2);font-weight:700}
+.reader{background:#20242c;border-radius:8px;padding:14px;color:#cfe0f2;text-align:center}
+.reader .lcd{background:#9fd4e8;color:#0d2233;border-radius:4px;padding:14px 10px;font-weight:700;font-size:15px;line-height:1.5}
+.reader .amt{font-size:22px;font-weight:900;display:block;margin-top:4px}
+.reader .cam{margin-top:10px;font-size:11.5px;color:#9fb0cc}
+.barcode{height:44px;margin:10px auto 0;width:180px;background:repeating-linear-gradient(90deg,#0d2233 0 3px,transparent 3px 6px,#0d2233 6px 8px,transparent 8px 13px);border-radius:2px}
+
+/* right rail */
+.rail{display:flex;flex-direction:column;gap:14px;position:sticky;top:14px}
+@media (max-width:900px){.rail{position:static}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px}
+.card h2{margin:0 0 4px;font-size:14px;font-weight:700}
+.card p.sub{margin:0 0 10px;font-size:12.5px;color:var(--ink-soft)}
+.nowdo{background:var(--mark);color:#23211D;border-radius:7px;padding:13px 14px}
+.nowdo h2{margin:0 0 3px;font-size:12.5px;font-weight:700}
+.nowdo p{margin:0;font-size:14px;font-weight:500;line-height:1.5}
+ol.tasks{list-style:none;margin:0;padding:0;counter-reset:t}
+ol.tasks li{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+ol.tasks li:last-child{border-bottom:0}
+ol.tasks .chk{flex:0 0 18px;height:18px;margin-top:2px;border:1.5px solid var(--line);border-radius:4px;display:grid;place-items:center;font-size:11px;color:transparent}
+ol.tasks li.done .chk{background:var(--ok);border-color:var(--ok);color:#fff}
+ol.tasks li.done{color:var(--ink-soft);text-decoration:line-through;text-decoration-color:var(--line)}
+.linkb{background:none;border:0;padding:0;color:var(--nice-2);font-size:12.5px;text-decoration:underline;text-underline-offset:2px}
+
+/* printer */
+.printer{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px}
+.slip{background:#fdfcf8;color:#2a2722;border:1px dashed #bdb6a6;border-radius:3px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:1.65;white-space:pre-wrap;max-height:260px;overflow:auto}
+:root[data-theme="dark"] .slip,:root:not([data-theme="light"]) .slip{color:#2a2722}
+
+/* reference tabs */
+.ref{display:none}
+.ref.on{display:block}
+.sim.off{display:none}
+.ref h2{font-size:17px;margin:26px 0 8px;letter-spacing:-.01em}
+.ref h2:first-child{margin-top:4px}
+.ref p,.ref li{font-size:14.5px;max-width:70ch}
+.steps{list-style:none;padding:0;margin:0;counter-reset:s}
+.steps li{counter-increment:s;padding:9px 0 9px 38px;position:relative;border-bottom:1px solid var(--line)}
+.steps li::before{content:counter(s);position:absolute;left:0;top:9px;width:25px;height:25px;border-radius:50%;background:var(--nice);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
+table.ref-t{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+table.ref-t th,table.ref-t td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+table.ref-t th{background:rgba(28,60,119,.08);font-weight:700;width:34%}
+.callout{border-left:3px solid var(--bad);background:rgba(184,52,42,.07);padding:11px 14px;border-radius:0 5px 5px 0;margin:12px 0;font-size:14px}
+.callout.tip{border-left-color:var(--nice-2);background:rgba(46,91,168,.08)}
+.contact{display:grid;gap:4px;font-size:14.5px;margin-top:8px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#23211D;color:#fff;padding:11px 18px;border-radius:6px;font-size:13.5px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:88vw}
+footer.ft{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="topin">
+    <h1>말랑하니 POS 연습 시뮬레이터<span>NICE 플러스 포스 · 사용 매뉴얼 v1.0 기준 · 실제 매출에는 영향 없음</span></h1>
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="sim">연습하기</button>
+      <button role="tab" aria-selected="false" data-tab="guide">한 장 요약</button>
+      <button role="tab" aria-selected="false" data-tab="trouble">문제 해결</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ============ 연습하기 ============ -->
+<section class="sim" id="sim">
+  <div class="layout">
+    <div>
+      <div class="device">
+        <div class="screen" id="screen"></div>
+      </div>
+      <div class="printer" style="margin-top:14px">
+        <h2 style="margin:0 0 8px;font-size:14px">영수증 프린터</h2>
+        <div class="slip" id="slip">용지 대기 중입니다. 결제나 마감을 하면 여기에 출력됩니다.</div>
+      </div>
+    </div>
+
+    <aside class="rail">
+      <div class="nowdo">
+        <h2>지금 할 일</h2>
+        <p id="hint">포스 전원을 켜고 시작하세요.</p>
+      </div>
+      <div class="card">
+        <h2>연습 과제</h2>
+        <p class="sub">매뉴얼 순서대로 9가지를 직접 해보세요.</p>
+        <ol class="tasks" id="tasks"></ol>
+        <p style="margin:12px 0 0"><button class="linkb" data-act="reset">처음부터 다시 연습하기</button></p>
+      </div>
+      <div class="card">
+        <h2>교육 담당자용</h2>
+        <p class="sub" style="margin:0">이 화면은 연습용 모형입니다. 실제 결제·취소는 일어나지 않으니 신입 알바에게 자유롭게 눌러보게 해도 됩니다. 현장 상품 구성은 포스에 등록된 실제 목록을 따릅니다.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ 한 장 요약 ============ -->
+<section class="ref" id="guide">
+  <h2>하루 운영 순서</h2>
+  <ol class="steps">
+    <li>포스 전원을 켜고 바탕화면에서 <b>플러스 포스</b>를 터치합니다.</li>
+    <li><b>판매관리</b>에 들어가 개점등록을 합니다. 매일 오픈 때 한 번.</li>
+    <li>상품을 담고 옵션까지 고른 뒤 결제합니다.</li>
+    <li>취소·반품 건은 <b>영수증관리</b>에서 처리합니다.</li>
+    <li>영업이 끝나면 <b>영업관리 → 마감정산</b>으로 그날 매출을 확정합니다.</li>
+    <li>카드단말기에서 마감정산서가 자동 출력되면 보관합니다.</li>
+    <li><b>시스템종료</b>로 포스를 끕니다.</li>
+  </ol>
+
+  <h2>메인 화면 버튼</h2>
+  <table class="ref-t">
+    <tr><th>판매관리</th><td>상품 등록과 결제. 영업 중 가장 많이 쓰는 화면입니다.</td></tr>
+    <tr><th>영업관리</th><td>개점(준비금 등록), 마감정산, 마감취소.</td></tr>
+    <tr><th>매출현황</th><td>분류별·상품별·시간대별 매출 조회.</td></tr>
+    <tr><th>자료수신</th><td>관리자 웹에서 바꾼 상품 정보를 포스로 내려받습니다.</td></tr>
+    <tr><th>환경설정 / 시스템종료</th><td>장비 설정과 포스 끄기.</td></tr>
+  </table>
+  <div class="callout tip">관리자 웹(OKPOS)에서 상품을 추가하거나 수정했다면 <b>자료수신</b>을 눌러야 포스 화면에 반영됩니다.</div>
+
+  <h2>결제 수단</h2>
+  <table class="ref-t">
+    <tr><th>신용카드</th><td>일반 카드 결제. 리더기에 금액이 뜨면 손님에게 보여 주고 카드를 꽂거나 대도록 안내합니다.</td></tr>
+    <tr><th>모바일결제</th><td>네이버페이·카카오페이·제로페이 등 바코드/QR. 알리페이와 위챗페이는 받을 수 없습니다.</td></tr>
+    <tr><th>현금</th><td>현금 없는 매장입니다. 카드 결제만 가능하다고 정중히 안내하세요. 계좌이체도 받지 않습니다.</td></tr>
+  </table>
+  <div class="callout">카드를 꽂았는데 반응이 없으면 취소를 누르고 처음부터 다시 진행합니다. 같은 건을 두 번 승인 요청하면 이중 결제됩니다.</div>
+
+  <h2>반품과 교환</h2>
+  <ul>
+    <li>결제 전이면 <b>선택 취소</b> 또는 <b>전체 취소</b>, 결제 후면 <b>영수증관리 → 반품</b>입니다.</li>
+    <li>반품과 교환은 결제했던 카드로만 처리합니다.</li>
+    <li>반품 전에 제품 상태를 반드시 확인합니다.</li>
+    <li>교환은 취소 후 재결제해야 재고와 매출에 제대로 반영됩니다.</li>
+    <li>목록의 상태가 <b>반품원거래</b>(플러스)와 <b>반품매출</b>(마이너스) 두 줄로 남으면 정상 처리된 것입니다.</li>
+  </ul>
+
+  <h2>마감조가 꼭 지킬 것</h2>
+  <ul>
+    <li>마감 전에 화면의 실매출액과 실제 카드 승인액이 맞는지 대조합니다. 차이가 나면 마감하지 말고 취소·반품 내역부터 확인하세요.</li>
+    <li>마감정산서를 출력해 보관합니다.</li>
+    <li>포스 마감까지 끝낸 뒤에 포스를 종료합니다.</li>
+  </ul>
+</section>
+
+<!-- ============ 문제 해결 ============ -->
+<section class="ref" id="trouble">
+  <h2>증상별 조치</h2>
+  <table class="ref-t">
+    <tr><th>결제 버튼을 눌러도 반응이 없다</th><td>화면 상단 통신상태를 확인하고 랜선과 와이파이를 점검한 뒤 프로그램 재시작.</td></tr>
+    <tr><th>카드가 안 읽힌다</th><td>IC칩을 끝까지 꽂았는지 확인 → 뒷면 마그네틱으로 긁기 → 그래도 안 되면 포스 프로그램을 재시작하고 다시 결제.</td></tr>
+    <tr><th>영수증이 안 나온다</th><td>용지 확인(빨간 줄이 보이면 교체) → 용지함 덮개가 완전히 닫혔는지 확인 → 영수증관리에서 재출력.</td></tr>
+    <tr><th>금액을 잘못 받았다 (결제 전)</th><td>선택 취소 또는 전체 취소 후 다시 입력.</td></tr>
+    <tr><th>금액을 잘못 받았다 (결제 후)</th><td>영수증관리에서 해당 영수증을 선택해 반품하고 다시 결제.</td></tr>
+    <tr><th>화면이 멈췄다</th><td>시스템종료에서 프로그램 재시작. 매출 자료는 서버에 저장되어 사라지지 않습니다.</td></tr>
+  </table>
+
+  <h2>비상 연락처</h2>
+  <div class="contact">
+    <div>포스 대리점(나이스핀테크) 고객센터 · 1688-2904</div>
+    <div>사내 담당자 연락처는 부스 안내문과 운영 단톡방 공지를 확인하세요.</div>
+    <div>매장명 말랑하니주식회사 · 포스번호 01</div>
+  </div>
+  <div class="callout tip">연락이 안 될 때는 대리점 고객센터로 먼저 전화하고, 포스번호 01과 매장명을 말하면 됩니다.</div>
+</section>
+
+<footer class="ft">연습용 시뮬레이터입니다. 화면 구성은 설명을 위해 단순화했고 실제 포스와 세부 배치가 다를 수 있습니다.</footer>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+(function(){
+"use strict";
+
+var PRODUCTS = [
+  {id:'p1', name:'조리도구세트', price:0, opts:[{n:'요리스푼_오렌지',p:5000},{n:'요리스푼_베이지',p:5000}]},
+  {id:'p2', name:'실리콘 식판', price:12000},
+  {id:'p3', name:'흡착볼', price:9000, opts:[{n:'흡착볼_민트',p:0},{n:'흡착볼_크림',p:0}]},
+  {id:'p4', name:'아기스푼 2종', price:7000},
+  {id:'p5', name:'빨대컵', price:11000, opts:[{n:'빨대컵_핑크',p:0},{n:'빨대컵_그레이',p:0}]},
+  {id:'p6', name:'실리콘 턱받이', price:8000},
+  {id:'p7', name:'이유식 보관용기 3P', price:14000},
+  {id:'p8', name:'테스트', price:1000}
+];
+
+var TASKS = [
+  {id:'t1', text:'플러스 포스를 실행한다'},
+  {id:'t2', text:'개점등록으로 준비금을 입력한다'},
+  {id:'t3', text:'조리도구세트를 담고 옵션을 고른다'},
+  {id:'t4', text:'수량을 바꾸거나 한 줄을 지워 본다'},
+  {id:'t5', text:'신용카드로 결제한다'},
+  {id:'t6', text:'모바일결제로 한 건 더 받는다'},
+  {id:'t7', text:'현금 요청을 받았을 때 안내한다'},
+  {id:'t8', text:'결제한 건을 영수증관리에서 반품한다'},
+  {id:'t9', text:'마감정산 후 포스를 종료한다'}
+];
+
+var S = {
+  screen:'off', opened:false, closedDone:false, cart:[], sel:null,
+  sales:[], seq:1, uid:1, rcptDate:'today', rcptSel:null, closeStep:0,
+  done:{}, lastSlip:'', input:''
+};
+
+try{ var saved = localStorage.getItem('pos-sim-done'); if(saved) S.done = JSON.parse(saved)||{}; }catch(e){}
+
+function save(){ try{ localStorage.setItem('pos-sim-done', JSON.stringify(S.done)); }catch(e){} }
+function done(id){ if(!S.done[id]){ S.done[id]=true; save(); renderTasks(); } }
+function won(n){ return (n||0).toLocaleString('ko-KR'); }
+function pad(n){ return n<10?'0'+n:''+n; }
+function now(){ var d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function today(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function yesterday(){ var d=new Date(Date.now()-864e5); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function total(){ var t=0; S.cart.forEach(function(r){ t += r.price*r.qty; }); return t; }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+var toastT;
+function toast(msg){
+  var old=document.querySelector('.toast'); if(old) old.remove();
+  var el=document.createElement('div'); el.className='toast'; el.textContent=msg;
+  el.setAttribute('role','status'); document.body.appendChild(el);
+  clearTimeout(toastT); toastT=setTimeout(function(){ el.remove(); }, 3200);
+}
+
+/* ---------- modal ---------- */
+var modalRoot=document.getElementById('modalRoot');
+function modal(title, body, foot){
+  modalRoot.innerHTML='<div class="scrim"><div class="dlg" role="dialog" aria-modal="true" aria-label="'+esc(title)+'">'+
+    '<header><span>'+esc(title)+'</span><button data-act="closeModal" aria-label="닫기" style="background:none;border:0;color:#fff">✕</button></header>'+
+    '<div class="body">'+body+'</div>'+(foot?'<div class="foot">'+foot+'</div>':'')+'</div></div>';
+}
+function closeModal(){ modalRoot.innerHTML=''; }
+
+/* ---------- screens ---------- */
+var screenEl=document.getElementById('screen');
+
+function bar(){
+  return '<div class="sbar"><span class="logo">NICE정보통신</span>'+
+    '<div class="info"><div>▶ 영업일자 : '+today()+'</div><div>▶ 통신상태 : 정상</div></div>'+
+    '<div class="info"><div>▶ 포스번호 : 01</div><div>▶ 영업상태 : '+(S.closedDone?'마감':(S.opened?'개점':'대기'))+'</div></div>'+
+    '<span class="clock">'+now()+'</span><span class="xbtn">✕</span></div>';
+}
+
+function render(){
+  var h='';
+  if(S.screen==='off'){
+    h='<div class="android"><button class="appicon hl" data-act="boot"><span class="box">P</span>플러스 포스</button>'+
+      '<p>포스 전원을 켠 뒤 바탕화면의 플러스 포스를 터치합니다.</p></div>';
+  } else if(S.screen==='main'){
+    h=bar()+'<div class="menu">'+
+      '<div class="promo"><h4>NICE<br>플러스오더</h4><small>실시간 매출 관리 · POS v3.3.8</small>'+
+      '<div class="store">말랑하니주식회사<br>29CM DDP 디자인페어 · 포스 01<br>'+(S.closedDone?'마감 완료':(S.opened?'영업 중':'개점 전'))+'</div></div>'+
+      '<div class="mtiles">'+
+      mbtn('goSales','판매관리','상품·결제','🧾')+
+      mbtn('goBiz','영업관리','개점·마감','📋')+
+      mbtn('goReport','매출현황','매출 조회','📊')+
+      mbtn('goSync','자료수신','상품 갱신','⬇')+
+      mbtn('goEnv','환경설정','장비 설정','⚙')+
+      mbtn('goExit','시스템종료','포스 끄기','⏻')+
+      '</div></div>';
+  } else if(S.screen==='sales'){
+    h=bar()+salesView();
+  } else if(S.screen==='biz'){
+    h=bar()+bizView();
+  } else if(S.screen==='receipts'){
+    h=bar()+receiptView();
+  } else if(S.screen==='report'){
+    h=bar()+reportView();
+  }
+  screenEl.innerHTML=h;
+  applyHl();
+  renderHint();
+}
+
+function mbtn(act,label,sub,ic){
+  var hl = hlTarget()===act ? ' hl':'';
+  return '<button class="mbtn'+hl+'" data-act="'+act+'"><span class="ic">'+ic+'</span>'+label+'<small>'+sub+'</small></button>';
+}
+
+function salesView(){
+  var rows='';
+  if(!S.cart.length){
+    rows='<tr><td colspan="5" class="cart-empty">오른쪽 상품판에서 상품을 터치해 담으세요.</td></tr>';
+  } else {
+    S.cart.forEach(function(r){
+      rows+='<tr class="'+(S.sel===r.uid?'sel':'')+'" data-act="selRow" data-uid="'+r.uid+'">'+
+        '<td class="n">'+(r.parent?'▶[옵션]':'')+esc(r.name)+'</td>'+
+        '<td>'+won(r.price)+'</td><td>'+r.qty+'</td><td>0</td><td>'+won(r.price*r.qty)+'</td></tr>';
+    });
+  }
+
+  var qty=0; S.cart.forEach(function(r){ if(!r.parent) qty+=r.qty; });
+  var t=total();
+
+  var cells='<div class="cell head" style="display:grid;place-items:center">말랑하니</div>';
+  PRODUCTS.forEach(function(p){
+    var hl=(hlTarget()==='prod:'+p.id)?' hl':'';
+    cells+='<button class="pbtn'+hl+'" data-act="add" data-id="'+p.id+'">'+esc(p.name)+
+      '<em>'+(p.opts?'옵션':won(p.price))+'</em></button>';
+  });
+  for(var i=0;i<11;i++) cells+='<div class="cell"></div>';
+
+  function pb(act,label,cls){ return '<button class="paybtn '+(cls||'')+(hlTarget()===act?' hl':'')+'" data-act="'+act+'">'+label+'</button>'; }
+
+  var keys='';
+  ['7','8','9','4','5','6','1','2','3','0','00','C'].forEach(function(k){
+    keys+='<button data-act="key" data-k="'+k+'">'+k+'</button>';
+  });
+  keys+='<button data-act="key" data-k="back">&lt;</button><button class="wide" data-act="qtySet">Enter</button>';
+
+  return '<div class="sales">'+
+    '<div class="lft">'+
+      '<div class="cartbox"><table class="cart"><colgroup><col style="width:40%"><col style="width:16%"><col style="width:12%"><col style="width:12%"><col style="width:20%"></colgroup>'+
+      '<thead><tr><th>메뉴명</th><th>단가</th><th>수량</th><th>할인</th><th>금액</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+      '<div class="subbar"><span>품 목</span><span>수 량</span><span>금 액</span></div>'+
+      '<div class="rowbtns">'+
+        '<button class="minib" data-act="delRow">선택취소</button>'+
+        '<button class="minib" data-act="delAll">전체취소</button>'+
+        '<button class="minib" data-act="noDc">할인취소</button>'+
+        '<button class="minib" data-act="qtySet">수량변경</button>'+
+        '<button class="minib sq" data-act="qty" data-d="-1">−</button>'+
+        '<button class="minib sq" data-act="qty" data-d="1">＋</button>'+
+        '<button class="minib sq" data-act="goMain">▲</button>'+
+      '</div>'+
+      '<div class="botzone">'+
+        '<div class="sumpanel">'+
+          '<div class="tabs3"><span>판매정보</span><span>상품정보</span><span>매출정보</span></div>'+
+          '<div class="note">말랑하니주식회사 · 포스 01</div>'+
+          '<div class="srow"><span>총 수 량</span><b>'+qty+'</b></div>'+
+          '<div class="srow"><span>합 계 액</span><b>'+won(t)+'</b></div>'+
+          '<div class="srow"><span>할인금액</span><b>0</b></div>'+
+          '<div class="srow money"><span>결제금액</span><b>'+won(t)+'</b></div>'+
+          '<div class="srow due"><span>받을금액</span><b>'+won(t)+'</b></div>'+
+        '</div>'+
+        '<div class="keypad"><div class="kdisp">'+(S.input||'0')+'</div>'+keys+'</div>'+
+        '<div class="sidekeys">'+
+          '<button data-act="noop">바코드</button><button data-act="noop">검색</button>'+
+          '<button data-act="noop">보류</button><button data-act="goMain">메인</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="rgt">'+
+      '<div class="prods">'+cells+'</div>'+
+      '<div class="paybar">'+
+        pb('pay:mixed','복합결제')+pb('pay:card','신용카드','tall key')+pb('pay:mobile','모바일결제','tall key')+
+        pb('rcptCash','현금영수증')+pb('receipts','영수증관리','tall')+
+        pb('pay:cash','현 금')+pb('noDc','할 인')+
+      '</div>'+
+    '</div></div>';
+}
+
+function bizView(){
+  return bar2('영업관리')+'<div class="page"><h3>영업관리</h3>'+
+    '<p style="font-size:12.5px;color:#4a5a78">개점은 영업 시작 때 한 번, 마감정산은 영업이 끝난 뒤에 합니다.</p>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+      '<button class="paybtn key'+(hlTarget()==='openDay'?' hl':'')+'" data-act="openDay" style="padding:12px 18px;font-size:13px">개점등록</button>'+
+      '<button class="paybtn key'+(hlTarget()==='closeStart'?' hl':'')+'" data-act="closeStart" style="padding:12px 18px;font-size:13px">마감정산</button>'+
+      '<button class="paybtn" data-act="closeCancel" style="padding:12px 18px;font-size:13px">마감취소</button>'+
+      '<button class="paybtn" data-act="goMain" style="padding:12px 18px;font-size:13px">메인으로</button>'+
+    '</div>'+
+    '<p style="margin-top:16px;font-size:12.5px">현재 상태 : <b>'+(S.closedDone?'마감 완료':(S.opened?'영업 중':'개점 전'))+'</b></p></div>';
+}
+
+function bar2(t){ return bar().replace('통신상태 : 정상','통신상태 : 정상 · '+t); }
+
+function receiptView(){
+  var date = S.rcptDate==='today'?today():yesterday();
+  var list = S.rcptDate==='today'? S.sales : [];
+  var rows='';
+  if(!list.length){
+    rows='<tr><td colspan="5" style="text-align:center;padding:22px;color:#7b89a3">조회된 영수증이 없습니다. 영업일자를 확인하세요.</td></tr>';
+  } else {
+    list.forEach(function(s){
+      rows+='<tr class="'+(S.rcptSel===s.no?'sel ':'')+(s.amount<0?'minus':'')+'" data-act="rcptSel" data-no="'+s.no+'">'+
+        '<td class="n">'+pad(s.no)+'</td><td class="n">'+s.time+'</td><td class="n">'+s.method+'</td>'+
+        '<td>'+won(s.amount)+'</td><td class="n">'+s.status+'</td></tr>';
+    });
+  }
+  return bar2('영수증관리')+'<div class="page"><h3>영수증 관리</h3>'+
+    '<span class="field">영업일자 <select data-act="rcptDate"><option value="today"'+(S.rcptDate==='today'?' selected':'')+'>'+today()+'</option><option value="yest"'+(S.rcptDate==='yest'?' selected':'')+'>'+yesterday()+'</option></select></span>'+
+    '<span class="field">포스번호 <select><option>01</option></select></span>'+
+    '<button class="minib" data-act="rcptQuery">조회</button>'+
+    '<table class="grid" style="margin-top:10px"><thead><tr><th>영수증</th><th>시간</th><th>결제수단</th><th>금액</th><th>상태</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="rowbtns" style="border:0;padding-left:0">'+
+      '<button class="minib warn'+(hlTarget()==='rcptReturn'?' hl':'')+'" data-act="rcptReturn">반품</button>'+
+      '<button class="minib" data-act="rcptReprint">재출력</button>'+
+      '<button class="minib" data-act="rcptChange">결제변경</button>'+
+      '<button class="minib" data-act="rcptCash">현금영수증</button>'+
+      '<button class="minib" data-act="goSales">판매화면</button>'+
+    '</div></div>';
+}
+
+function sums(){
+  var plus=0,minus=0,card=0,mobile=0,cnt=0;
+  S.sales.forEach(function(s){
+    if(s.amount>=0){ plus+=s.amount; cnt++; } else minus+=-s.amount;
+    if(s.method==='신용카드') card+=s.amount;
+    if(s.method==='모바일결제') mobile+=s.amount;
+  });
+  return {plus:plus,minus:minus,net:plus-minus,card:card,mobile:mobile,cnt:cnt};
+}
+
+function reportView(){
+  var t=sums();
+  return bar2('매출현황')+'<div class="page"><h3>오늘 매출현황</h3>'+
+    '<table class="grid"><tbody>'+
+    '<tr><th>총판매액</th><td>'+won(t.plus)+'원</td></tr>'+
+    '<tr><th>총반품액</th><td>'+won(t.minus)+'원</td></tr>'+
+    '<tr><th>실매출액</th><td><b>'+won(t.net)+'원</b></td></tr>'+
+    '<tr><th>신용카드</th><td>'+won(t.card)+'원</td></tr>'+
+    '<tr><th>모바일결제</th><td>'+won(t.mobile)+'원</td></tr>'+
+    '<tr><th>현금</th><td>0원 (현금 없는 매장)</td></tr>'+
+    '</tbody></table><div style="margin-top:12px"><button class="minib" data-act="goMain">메인으로</button></div></div>';
+}
+
+/* ---------- hint / highlight ---------- */
+function nextTask(){
+  for(var i=0;i<TASKS.length;i++){ if(!S.done[TASKS[i].id]) return TASKS[i].id; }
+  return null;
+}
+function hlTarget(){
+  var t=nextTask();
+  if(t==='t2') return S.screen==='main'?'goBiz':(S.screen==='biz'?'openDay':null);
+  if(t==='t3') return S.screen==='main'?'goSales':(S.screen==='sales'?'prod:p1':null);
+  if(t==='t5'||t==='t6') return S.screen==='sales'?(t==='t5'?'pay:card':'pay:mobile'):null;
+  if(t==='t7') return S.screen==='sales'?'pay:cash':null;
+  if(t==='t8') return S.screen==='sales'?'receipts':(S.screen==='receipts'?'rcptReturn':null);
+  if(t==='t9') return S.screen==='main'?'goBiz':(S.screen==='biz'?'closeStart':null);
+  return null;
+}
+function applyHl(){}
+function renderHint(){
+  var t=nextTask(), msg;
+  if(!t){ msg='9가지 연습을 모두 마쳤습니다. 이제 현장에서도 같은 순서로 하면 됩니다.'; }
+  else if(t==='t1'){ msg='포스 전원을 켜고 바탕화면에서 플러스 포스를 터치하세요.'; }
+  else if(t==='t2'){ msg = S.screen==='biz' ? '개점등록을 눌러 준비금을 입력하세요.' : '영업관리로 들어가 개점등록을 합니다.'; }
+  else if(t==='t3'){ msg = S.screen==='sales' ? '조리도구세트를 담고 사이드 메뉴에서 옵션을 고르세요. 옵션을 안 고르면 합계가 0원입니다.' : '판매관리로 들어가세요.'; }
+  else if(t==='t4'){ msg='담긴 줄을 터치해 선택한 뒤 수량을 바꾸거나 선택 취소를 눌러 보세요.'; }
+  else if(t==='t5'){ msg = S.screen==='sales' ? '신용카드를 눌러 결제해 보세요.' : '판매화면으로 돌아가 결제합니다.'; }
+  else if(t==='t6'){ msg='상품을 다시 담고 모바일결제로 받아 보세요.'; }
+  else if(t==='t7'){ msg='손님이 현금을 낸다고 가정하고 현금 버튼을 눌러 안내 문구를 확인하세요.'; }
+  else if(t==='t8'){ msg = S.screen==='receipts' ? '취소할 영수증을 터치해 선택한 뒤 반품을 누르세요.' : '영수증관리로 들어가 조회합니다.'; }
+  else { msg = S.screen==='biz' ? '마감정산을 눌러 정산표를 출력하고 영업마감까지 끝내세요.' : '영업관리에서 마감정산을 합니다.'; }
+  document.getElementById('hint').textContent=msg;
+}
+function renderTasks(){
+  var ol=document.getElementById('tasks'), h='';
+  TASKS.forEach(function(t){
+    h+='<li class="'+(S.done[t.id]?'done':'')+'"><span class="chk">✓</span><span>'+esc(t.text)+'</span></li>';
+  });
+  ol.innerHTML=h; renderHint();
+}
+
+/* ---------- printing ---------- */
+function printSlip(txt){
+  S.lastSlip=txt;
+  document.getElementById('slip').textContent=txt;
+}
+function saleSlip(sale){
+  var lines=['      말랑하니주식회사','     [연습용 모의 영수증]','  포스번호 01 · 영수증 '+pad(sale.no),
+    today()+'  '+sale.time,'--------------------------------'];
+  sale.items.forEach(function(i){
+    lines.push((i.parent?' └ ':'')+i.name+'  x'+i.qty+'   '+won(i.price*i.qty));
+  });
+  lines.push('--------------------------------');
+  lines.push('합계            '+won(sale.amount)+'원');
+  lines.push('결제수단        '+sale.method);
+  lines.push(sale.amount<0?'** 반품(취소) 처리 **':'승인 완료');
+  lines.push('','    이용해 주셔서 감사합니다');
+  return lines.join('\n');
+}
+
+/* ---------- side menu (옵션) ---------- */
+function openOptions(p, parentUid){
+  var body='<p style="margin:0">옵션이 있는 상품은 사이드 메뉴가 자동으로 뜹니다. 색상이나 종류를 터치해 고르세요. 여러 개를 함께 고를 수 있습니다.</p><div class="optlist">';
+  p.opts.forEach(function(o,i){
+    body+='<button class="optbtn" data-act="optToggle" data-i="'+i+'" aria-pressed="false">'+esc(o.n)+'<br><small>'+won(o.p)+'원</small></button>';
+  });
+  body+='</div>';
+  modal('사이드 메뉴 · '+p.name, body,
+    '<button data-act="optCancel" data-uid="'+parentUid+'">선택취소</button>'+
+    '<button class="pri" data-act="optOk" data-id="'+p.id+'" data-uid="'+parentUid+'">확인</button>');
+}
+
+/* ---------- actions ---------- */
+document.addEventListener('change', function(e){
+  var sel=e.target.closest('[data-act="rcptDate"]');
+  if(sel){ S.rcptDate=sel.value; S.rcptSel=null; render(); }
+});
+
+document.addEventListener('click', function(e){
+  var tab=e.target.closest('[data-tab]');
+  if(tab){
+    document.querySelectorAll('[data-tab]').forEach(function(b){ b.setAttribute('aria-selected', b===tab?'true':'false'); });
+    document.getElementById('sim').classList.toggle('off', tab.dataset.tab!=='sim');
+    document.getElementById('guide').classList.toggle('on', tab.dataset.tab==='guide');
+    document.getElementById('trouble').classList.toggle('on', tab.dataset.tab==='trouble');
+    window.scrollTo({top:0});
+    return;
+  }
+  var el=e.target.closest('[data-act]'); if(!el) return;
+  var a=el.dataset.act;
+
+  if(a==='closeModal'){ closeModal(); return; }
+  if(a==='reset'){
+    S.screen='off'; S.opened=false; S.closedDone=false; S.cart=[]; S.sales=[]; S.seq=1; S.sel=null; S.rcptSel=null; S.done={};
+    save(); printSlip('용지 대기 중입니다. 결제나 마감을 하면 여기에 출력됩니다.'); renderTasks(); render(); toast('처음 상태로 돌아갔습니다.'); return;
+  }
+
+  if(a==='boot'){ S.screen='main'; done('t1'); render(); return; }
+  if(a==='goMain'){ S.screen='main'; render(); return; }
+  if(a==='goBiz'){ S.screen='biz'; render(); return; }
+  if(a==='goReport'){ S.screen='report'; render(); return; }
+  if(a==='goEnv'){ toast('환경설정은 장비 설치 담당자만 사용합니다.'); return; }
+  if(a==='goSync'){
+    modal('자료수신','관리자 웹에서 바꾼 상품 정보를 포스로 내려받았습니다. 상품을 추가·수정한 날에는 꼭 눌러 주세요.','<button class="pri" data-act="closeModal">확인</button>');
+    return;
+  }
+  if(a==='goSales'){
+    if(!S.opened){ toast('개점등록을 먼저 해야 판매할 수 있습니다. 영업관리로 가세요.'); S.screen='biz'; render(); return; }
+    if(S.closedDone){ toast('마감이 끝난 상태입니다. 마감취소를 하거나 다음 날 개점하세요.'); return; }
+    S.screen='sales'; render(); return;
+  }
+  if(a==='goExit'){
+    modal('프로그램 종료','마감까지 끝났으면 프로그램을 종료합니다. 화면이 멈추거나 느릴 때는 재시작을 먼저 해 보세요. 매출 자료는 서버에 저장되어 지워지지 않습니다.',
+      '<button data-act="progRestart">프로그램 재시작</button><button class="pri" data-act="progExit">프로그램 종료</button>');
+    return;
+  }
+  if(a==='progRestart'){ closeModal(); S.screen='main'; render(); toast('프로그램을 재시작했습니다. 매출 자료는 그대로입니다.'); return; }
+  if(a==='progExit'){
+    closeModal();
+    if(!S.closedDone){ toast('마감을 하지 않았습니다. 마감정산을 먼저 끝내고 종료하세요.'); return; }
+    S.screen='off'; done('t9'); render(); toast('포스를 종료했습니다. 수고하셨습니다.'); return;
+  }
+
+  /* 개점 / 마감 */
+  if(a==='openDay'){
+    if(S.opened){ toast('이미 개점되어 있습니다.'); return; }
+    modal('개점등록','영업일자 '+today()+'<br>준비금을 입력하고 개점합니다. 현금 없는 매장이므로 준비금은 0원으로 둡니다.'+
+      '<div class="field" style="margin-top:12px">준비금 <input id="prep" value="0" inputmode="numeric" style="width:120px;text-align:right"> 원</div>',
+      '<button data-act="closeModal">아니오</button><button class="pri" data-act="openYes">개점</button>');
+    return;
+  }
+  if(a==='openYes'){
+    closeModal(); S.opened=true; S.closedDone=false; done('t2'); S.screen='main'; render(); toast('개점되었습니다. 판매관리로 들어가세요.'); return;
+  }
+  if(a==='closeCancel'){
+    if(!S.closedDone){ toast('마감한 내역이 없습니다.'); return; }
+    S.closedDone=false; render(); toast('마감을 취소했습니다. 다시 판매할 수 있습니다.'); return;
+  }
+  if(a==='closeStart'){
+    if(!S.opened){ toast('개점 기록이 없어 마감할 수 없습니다.'); return; }
+    if(S.closedDone){ toast('이미 마감된 영업일자입니다.'); return; }
+    modal('마감정산 대상목록','영업일자 <b>'+today()+'</b><br>개점일시 '+today()+' 09:30<br>포스번호 01<br><br>마감할 영업일자가 맞는지 확인하세요.',
+      '<button data-act="closeModal">닫기</button><button class="pri" data-act="closeNext">다음</button>');
+    return;
+  }
+  if(a==='closeNext'){
+    var t=sums();
+    modal('정산 내역','<table class="grid"><tbody>'+
+      '<tr><th>총판매액</th><td>'+won(t.plus)+'원</td></tr>'+
+      '<tr><th>총반품액</th><td>'+won(t.minus)+'원</td></tr>'+
+      '<tr><th>실매출액</th><td><b>'+won(t.net)+'원</b></td></tr>'+
+      '<tr><th>신용카드</th><td>'+won(t.card)+'원</td></tr>'+
+      '<tr><th>모바일결제</th><td>'+won(t.mobile)+'원</td></tr>'+
+      '</tbody></table><p style="margin:10px 0 0;font-size:12.5px;color:#B8342A">실매출액과 카드 승인액이 맞는지 대조한 뒤 마감하세요.</p>',
+      '<button data-act="closePrint">정산지출력</button><button class="pri" data-act="closeFinish">영업마감</button>');
+    return;
+  }
+  if(a==='closePrint'){
+    var t2=sums();
+    printSlip(['        [마감정산서]','영업일자 '+today(),'포스번호 01','마감일시 '+today()+' '+now(),
+      '================================','** 매출 합계 **','총판매액      '+won(t2.plus),'총반품액      '+won(t2.minus),
+      '실매출액      '+won(t2.net),'','** 결제수단별 매출내역 **','신용카드      '+won(t2.card),'모바일결제    '+won(t2.mobile),
+      '현금          0','','** 신용카드 정산 내역 **','승인건수      '+t2.cnt,'승인금액      '+won(t2.card),
+      '','카드단말기 출력분과 금액이 같아야 합니다.','출력 후 반드시 보관하세요.'].join('\n'));
+    toast('정산표를 출력했습니다. 마감정산서는 보관해 주세요.');
+    return;
+  }
+  if(a==='closeFinish'){
+    modal('마감 확인','마감 처리하시겠습니까? 마감하면 그날 매출이 확정됩니다.',
+      '<button data-act="closeModal">아니오</button><button class="pri" data-act="closeYes">네</button>');
+    return;
+  }
+  if(a==='closeYes'){
+    closeModal(); S.closedDone=true;
+    if(S.lastSlip.indexOf('마감정산서')<0){
+      var t3=sums();
+      printSlip(['        [마감정산서]','영업일자 '+today(),'포스번호 01','마감일시 '+today()+' '+now(),
+        '================================','총판매액      '+won(t3.plus),'총반품액      '+won(t3.minus),
+        '실매출액      '+won(t3.net),'신용카드      '+won(t3.card),'모바일결제    '+won(t3.mobile),
+        '','출력 후 반드시 보관하세요.'].join('\n'));
+    }
+    S.screen='main'; render();
+    toast('마감되었습니다. 카드단말기에서 마감정산서가 출력됩니다. 이제 시스템종료로 포스를 끄세요.');
+    return;
+  }
+
+  /* 판매 */
+  if(a==='add'){
+    var p=PRODUCTS.filter(function(x){return x.id===el.dataset.id;})[0]; if(!p) return;
+    var uid=S.uid++;
+    S.cart.push({uid:uid,name:p.name,price:p.price,qty:1,parent:null});
+    S.sel=uid;
+    if(p.opts){ render(); openOptions(p,uid); return; }
+    render(); return;
+  }
+  if(a==='optToggle'){
+    el.setAttribute('aria-pressed', el.getAttribute('aria-pressed')==='true'?'false':'true'); return;
+  }
+  if(a==='optOk'){
+    var pid=el.dataset.id, parent=+el.dataset.uid;
+    var prod=PRODUCTS.filter(function(x){return x.id===pid;})[0];
+    var picked=[].slice.call(document.querySelectorAll('.optbtn[aria-pressed="true"]'));
+    if(!picked.length){ toast('옵션을 하나 이상 골라야 금액이 올라갑니다.'); return; }
+    var idx=S.cart.map(function(r){return r.uid;}).indexOf(parent)+1;
+    picked.forEach(function(b){
+      var o=prod.opts[+b.dataset.i];
+      S.cart.splice(idx++,0,{uid:S.uid++,name:o.n,price:o.p,qty:1,parent:parent});
+    });
+    closeModal(); if(pid==='p1') done('t3'); render(); return;
+  }
+  if(a==='optCancel'){
+    var pu=+el.dataset.uid;
+    S.cart=S.cart.filter(function(r){ return r.uid!==pu && r.parent!==pu; });
+    closeModal(); render(); return;
+  }
+  if(a==='noop'){ toast('연습 시뮬레이터에서는 쓰지 않는 버튼입니다.'); return; }
+  if(a==='noDc'){ toast('부스 판매는 할인 없이 정가로 받습니다.'); return; }
+  if(a==='key'){
+    var k=el.dataset.k;
+    if(k==='C'){ S.input=''; }
+    else if(k==='back'){ S.input=(S.input||'').slice(0,-1); }
+    else { S.input=((S.input||'')+k).replace(/^0+(?=\d)/,'').slice(0,3); }
+    render(); return;
+  }
+  if(a==='qtySet'){
+    var v=parseInt(S.input,10);
+    if(!S.sel){ toast('수량을 바꿀 줄을 먼저 터치해 선택하세요.'); return; }
+    if(!v){ toast('키패드로 바꿀 수량을 먼저 누르세요. 예: 3 → 수량변경'); return; }
+    S.cart.forEach(function(r){ if(r.uid===S.sel) r.qty=v; });
+    S.input=''; done('t4'); render(); return;
+  }
+  if(a==='selRow'){ S.sel=+el.dataset.uid; render(); return; }
+  if(a==='qty'){
+    if(!S.sel){ toast('먼저 수량을 바꿀 줄을 터치해 선택하세요.'); return; }
+    var d=+el.dataset.d;
+    S.cart.forEach(function(r){ if(r.uid===S.sel){ r.qty=Math.max(1,r.qty+d); } });
+    done('t4'); render(); return;
+  }
+  if(a==='delRow'){
+    if(!S.sel){ toast('지울 줄을 먼저 터치해 선택하세요.'); return; }
+    var u=S.sel;
+    S.cart=S.cart.filter(function(r){ return r.uid!==u && r.parent!==u; });
+    S.sel=null; done('t4'); render(); return;
+  }
+  if(a==='delAll'){
+    if(!S.cart.length){ toast('담긴 상품이 없습니다.'); return; }
+    modal('전체 취소','전체 주문을 취소하시겠습니까? 아직 결제하지 않은 주문만 지워집니다. 이미 결제가 끝난 건은 영수증관리에서 반품하세요.',
+      '<button data-act="closeModal">아니오</button><button class="pri" data-act="delAllYes">네</button>');
+    return;
+  }
+  if(a==='delAllYes'){ closeModal(); S.cart=[]; S.sel=null; done('t4'); render(); return; }
+
+  /* 결제 */
+  if(a==='pay:cash'){
+    done('t7');
+    modal('현금 결제 요청','현금 없는 매장입니다. 손님께 정중히 안내해 주세요.<br><br><b style="color:#1C3C77">"죄송합니다, 저희 부스는 카드와 간편결제만 받고 있어요."</b><br><br>계좌이체도 받지 않습니다.',
+      '<button class="pri" data-act="closeModal">안내했습니다</button>');
+    return;
+  }
+  if(a==='pay:mixed'){
+    modal('복합결제','현금과 카드를 나눠 받을 때 쓰는 기능입니다. 현금 없는 매장이라 현장에서는 사용하지 않습니다.','<button class="pri" data-act="closeModal">확인</button>');
+    return;
+  }
+  if(a==='pay:card'){
+    if(!total()){ toast('합계가 0원입니다. 상품과 옵션을 확인하세요.'); return; }
+    modal('신용카드 결제','<div class="reader"><div class="lcd">카드를 꽂거나 대주세요<span class="amt">'+won(total())+'원</span></div>'+
+      '<p class="cam">리더기 화면을 손님에게 보여 주고 안내합니다.</p></div>',
+      '<button data-act="closeModal">취소</button><button class="pri" data-act="cardInsert">카드 대기</button>');
+    return;
+  }
+  if(a==='cardInsert'){ approve('신용카드','t5'); return; }
+  if(a==='pay:mobile'){
+    if(!total()){ toast('합계가 0원입니다. 상품과 옵션을 확인하세요.'); return; }
+    modal('모바일결제','<div class="reader"><div class="lcd">바코드를 카메라에 읽혀주세요<span class="amt">'+won(total())+'원</span><div class="barcode"></div></div>'+
+      '</div><div class="paygrid"><span>네이버페이</span><span>카카오페이</span><span>제로페이</span><span>페이코</span><span>삼성페이</span><span class="no">알리페이</span><span class="no">위챗페이</span></div>'+'<p style="margin:8px 0 0;font-size:12px;color:#B8342A">알리페이와 위챗페이는 받을 수 없습니다.</p>',
+      '<button data-act="closeModal">취소</button><button class="pri" data-act="mobileScan">바코드 스캔</button>');
+    return;
+  }
+  if(a==='mobileScan'){ approve('모바일결제','t6'); return; }
+
+  /* 영수증관리 */
+  if(a==='receipts'){ S.screen='receipts'; S.rcptSel=null; render(); return; }
+  if(a==='rcptQuery'){
+    render();
+    if(S.rcptDate!=='today') toast('날짜가 맞지 않으면 목록이 비어 있습니다. 영업일자를 확인하세요.');
+    return;
+  }
+  if(a==='rcptSel'){ S.rcptSel=+el.dataset.no; render(); return; }
+  if(a==='rcptReturn'){
+    if(!S.rcptSel){ toast('취소할 영수증을 먼저 터치해 선택하세요.'); return; }
+    var org=S.sales.filter(function(s){return s.no===S.rcptSel;})[0];
+    if(!org || org.amount<0){ toast('이미 취소된 건이거나 반품 대상이 아닙니다.'); return; }
+    if(org.status==='반품원거래'){ toast('이미 반품 처리된 건입니다.'); return; }
+    modal('반품 처리','제품 상태를 확인하셨나요? 반품과 교환은 결제했던 카드로만 처리합니다. 교환이라면 취소 후 재결제해야 재고와 매출에 반영됩니다.',
+      '<button data-act="closeModal">아니오</button><button class="pri" data-act="rcptReturnYes">반품</button>');
+    return;
+  }
+  if(a==='rcptReturnYes'){
+    closeModal();
+    var o=S.sales.filter(function(s){return s.no===S.rcptSel;})[0];
+    o.status='반품원거래';
+    var r={no:S.seq++, time:now(), method:o.method, amount:-o.amount, status:'반품매출', items:o.items};
+    S.sales.push(r);
+    printSlip(saleSlip(r));
+    done('t8'); render();
+    toast('반품되었습니다. 반품원거래와 반품매출 두 줄이 짝으로 남으면 정상입니다.');
+    return;
+  }
+  if(a==='rcptReprint'){
+    if(!S.rcptSel){ toast('재출력할 영수증을 선택하세요.'); return; }
+    var rp=S.sales.filter(function(s){return s.no===S.rcptSel;})[0];
+    printSlip(saleSlip(rp)); toast('영수증을 다시 출력했습니다.'); return;
+  }
+  if(a==='rcptChange'){ toast('결제변경은 현금과 카드처럼 결제 수단만 바꿀 때 씁니다.'); return; }
+  if(a==='rcptCash'){ toast('현금영수증은 결제 후 추가로 발행할 때 씁니다. 현금 없는 매장이라 쓸 일이 거의 없습니다.'); return; }
+});
+
+function approve(method, taskId){
+  var amount=total(), items=S.cart.slice();
+  modal(method,'<div class="reader"><div class="lcd">승인 요청 중입니다<span class="amt">'+won(amount)+'원</span></div></div>','');
+  setTimeout(function(){
+    var sale={no:S.seq++, time:now(), method:method, amount:amount, status:'판매', items:items};
+    S.sales.push(sale);
+    printSlip(saleSlip(sale));
+    S.cart=[]; S.sel=null;
+    modal('승인 완료','<div class="reader"><div class="lcd" style="background:#b7e8c4">승인되었습니다<span class="amt">'+won(amount)+'원</span></div>'+
+      '<p class="cam">영수증이 자동 출력됩니다. 카드와 영수증을 함께 돌려 드리세요.</p></div>',
+      '<button class="pri" data-act="closeModal">확인</button>');
+    done(taskId); render();
+  }, 900);
+}
+
+renderTasks();
+render();
+setInterval(function(){ if(S.screen!=='off' && !modalRoot.innerHTML) render(); }, 30000);
+})();
+</script>
+</body>
+</html>
